@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import {signIn as signInV5} from 'next-auth-v5/react'
+import {signIn as signInV5} from 'next-auth/react'
 
 export default function Signin() {
     return <>

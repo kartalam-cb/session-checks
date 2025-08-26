@@ -1,6 +1,6 @@
-import type {NextAuthResult} from "next-auth-v5";
-import NextAuth from "next-auth-v5";
-import MicrosoftEntraID from "next-auth-v5/providers/microsoft-entra-id";
+import type {NextAuthResult} from "next-auth";
+import NextAuth from "next-auth";
+import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import {
     COOKIE_AUTH_JS_SESSION_TOKEN,
     sessionMaxAge,

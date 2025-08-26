@@ -1,6 +1,6 @@
 import {FIFTEEN_MIN_IN_MS, refreshAdb2cTokens, sessionMaxAge} from "@/config/helpers";
-import type {JWT} from "next-auth-v5/jwt";
-import type {Account as NextV5Account,} from "next-auth-v5";
+import type {JWT} from "next-auth/jwt";
+import type {Account as NextV5Account,} from "next-auth";
 
 
 export type AppJWT = JWT & {
@@ -31,7 +31,7 @@ export async function jwtCallback({user, token, account}: {
         return {
             ...token,
             sub: user.id,
-            providerRefreshToken: account.refresh_token ?? null,
+            providerRefreshToken: (account as { refresh_token?: string | null } | null)?.refresh_token ?? null,
             providerIdTokenExpiresAt,
             absoluteSessionExpiresAt: now + (sessionMaxAge * 1000),
             sessionEnded: null,

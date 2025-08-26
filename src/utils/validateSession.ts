@@ -1,4 +1,4 @@
-import type {Session} from "next-auth-v5";
+import type {Session} from "next-auth";
 import {cookies as nextCookies} from "next/headers";
 import {SessionStore} from "@/utils/SessionStore";
 import {decode, encode} from "@/utils/jwt";
