@@ -1,7 +1,10 @@
-import {Account, Profile, User} from "next-auth";
-import {AdapterUser} from "@auth/core/adapters";
+import type {Account as NextV4Account,} from "next-auth";
+import {User} from "next-auth";
 import {FIFTEEN_MIN_IN_MS, refreshAdb2cTokens, sessionMaxAge} from "@/config/helpers";
 import {JWT} from "next-auth/jwt";
+import {AdapterUser} from "next-auth/adapters";
+import type {Account as NextV5Account,} from "next-auth-v5";
+
 
 export type AppJWT = JWT & {
     providerRefreshToken?: string | null;
@@ -18,10 +21,8 @@ export type AppJWT = JWT & {
 
 export async function jwtCallback({user, token, account}: {
     token: JWT,
-    user: User | AdapterUser,
-    account?: Account | null,
-    profile?: Profile,
-    trigger?: "signIn" | "signUp" | "update";
+    user: {id?: string | undefined},
+    account?: NextV4Account | NextV5Account | null,
 }) {
     const t = token as AppJWT;
 
@@ -35,7 +36,7 @@ export async function jwtCallback({user, token, account}: {
             sub: user.id,
             providerRefreshToken: account.refresh_token ?? null,
             providerIdTokenExpiresAt,
-            absoluteSessionExpiresAt: now + sessionMaxAge,
+            absoluteSessionExpiresAt: now + (sessionMaxAge * 1000),
             sessionEnded: null,
             tokenRotatedAt: now,
             tokenRotationCount: 0,
@@ -72,7 +73,7 @@ export async function jwtCallback({user, token, account}: {
         return {...token, error: null};
     }
 
-    console.log("JWT: attempting provider ID token refresh via refresh_token");
+    console.log("JWT: attempting provider ID token refresh via refresh_token", token);
 
     try {
         const refreshedToken = await refreshAdb2cTokens(t.providerRefreshToken);

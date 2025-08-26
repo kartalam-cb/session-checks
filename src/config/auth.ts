@@ -1,13 +1,19 @@
-import NextAuth, {NextAuthConfig} from "next-auth";
-import AzureADB2C from "next-auth/providers/azure-ad-b2c";
+import NextAuth, {AuthOptions} from "next-auth";
+import AzureADB2C, {AzureB2CProfile} from "next-auth/providers/azure-ad-b2c";
 import {AppJWT, jwtCallback} from "@/config/callbacks";
 import {
     ADB2C_AUTHORIZATION_ENDPOINT,
     ADB2C_ISSUER,
     ADB2C_TOKEN_ENDPOINT,
     ADB2C_WELL_KNOWN_URL,
-    sessionMaxAge
+    clientId,
+    clientSecret,
+    sessionMaxAge,
+    tenant,
+    userFlow,
+    COOKIE_AUTH_JS_SESSION_TOKEN
 } from "@/config/helpers";
+import {decode, encode} from "@/utils/jwt";
 
 declare module "next-auth" {
     interface Session {
@@ -23,21 +29,25 @@ declare module "next-auth" {
     }
 }
 
-const authJsOptions: NextAuthConfig = {
+export const authJsOptions: AuthOptions = {
     debug: true,
+    secret: process.env.AUTH_SECRET,
     session: {
         strategy: "jwt",
         maxAge: sessionMaxAge,
         updateAge: 0
     },
     jwt: {
-        maxAge: sessionMaxAge
+        maxAge: sessionMaxAge,
+        encode: encode,
+        decode: decode,
     },
-    trustHost: true,
     providers: [
         AzureADB2C({
-            clientId: process.env.CB_AUTH_AZURE_AD_B2C_CLIENT_ID,
-            clientSecret: process.env.CB_AUTH_AZURE_AD_B2C_CLIENT_SECRET,
+            clientId,
+            clientSecret,
+            tenantId: tenant,
+            primaryUserFlow: userFlow,
             authorization: {
                 url: ADB2C_AUTHORIZATION_ENDPOINT,
                 params: {
@@ -47,10 +57,27 @@ const authJsOptions: NextAuthConfig = {
             checks: ["nonce", "pkce"],
             issuer: ADB2C_ISSUER,
             token: ADB2C_TOKEN_ENDPOINT,
-            client: { token_endpoint_auth_method: "client_secret_post" },
-            wellKnown: ADB2C_WELL_KNOWN_URL
+            client: {token_endpoint_auth_method: "none"},
+            wellKnown: ADB2C_WELL_KNOWN_URL,
+            profileUrl: "https://graph.microsoft.com/oidc/userinfo",
+            profile: (profile: AzureB2CProfile) => ({
+                id: profile.sub,
+                name: `${profile.given_name} ${profile.family_name}`,
+                email: profile.emails?.[0] ?? "",
+            }),
         })
     ],
+    cookies: {
+        sessionToken: {
+            name: COOKIE_AUTH_JS_SESSION_TOKEN,
+            options: {
+                httpOnly: true,
+                sameSite: "lax",
+                path: "/",
+                secure: process.env.NODE_ENV === "production",
+            },
+        },
+    },
     callbacks: {
         jwt: jwtCallback,
         session: ({token}) => {
@@ -62,11 +89,10 @@ const authJsOptions: NextAuthConfig = {
                 tokenRotatedAt: t.tokenRotatedAt ?? null,
                 tokenRotationCount: t.tokenRotationCount ?? null,
                 providerIdTokenExpiresAt: t.providerIdTokenExpiresAt ?? null,
+                refreshToken: t.providerRefreshToken
             }
         }
     }
 }
 
-export const {
-    auth, signIn, handlers
-} = NextAuth(authJsOptions)
+export const nextAuth = NextAuth(authJsOptions)

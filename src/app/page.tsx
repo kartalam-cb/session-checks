@@ -1,13 +1,13 @@
 import Image from "next/image";
 import Signin from "@/app/Signin";
 import TriggerApi from "@/app/TriggerApi";
-import {auth} from "@/config/auth";
-import {cookies} from "next/headers"
+import {getServerSession} from "next-auth";
+import {authJsOptions} from "@/config/auth";
 
 // next-auth (v5)
 
 export default async function Home() {
-    const session = await auth();
+    const session = await getServerSession(authJsOptions);
 
     console.log("Session:", session);
   return (

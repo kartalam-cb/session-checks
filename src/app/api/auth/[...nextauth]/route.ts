@@ -1,3 +1,8 @@
-import {handlers} from "@/config/auth";
+// import {nextAuth} from "@/config/auth";
+//
+// export const GET = nextAuth;
+// export const POST = nextAuth;
 
-export const {POST, GET} = handlers
+import  {handlers} from '@/config/entraAuth'
+
+export const {GET, POST} = handlers;
