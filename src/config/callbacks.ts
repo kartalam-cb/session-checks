@@ -1,8 +1,5 @@
-import type {Account as NextV4Account,} from "next-auth";
-import {User} from "next-auth";
 import {FIFTEEN_MIN_IN_MS, refreshAdb2cTokens, sessionMaxAge} from "@/config/helpers";
-import {JWT} from "next-auth/jwt";
-import {AdapterUser} from "next-auth/adapters";
+import type {JWT} from "next-auth-v5/jwt";
 import type {Account as NextV5Account,} from "next-auth-v5";
 
 
@@ -22,7 +19,7 @@ export type AppJWT = JWT & {
 export async function jwtCallback({user, token, account}: {
     token: JWT,
     user: {id?: string | undefined},
-    account?: NextV4Account | NextV5Account | null,
+    account?: NextV5Account | null,
 }) {
     const t = token as AppJWT;
 

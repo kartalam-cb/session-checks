@@ -1,11 +1,20 @@
-import {Session, User} from "next-auth";
+import type {Session} from "next-auth-v5";
 import {cookies as nextCookies} from "next/headers";
 import {SessionStore} from "@/utils/SessionStore";
 import {decode, encode} from "@/utils/jwt";
 import {jwtCallback, AppJWT} from "@/config/callbacks";
 import {COOKIE_AUTH_JS_SESSION_TOKEN, sessionMaxAge} from "@/config/helpers";
 
-export function checkSessionIfValid(session: Session) {
+type AppSession = Session & {
+    error?: { message: string; description?: string } | null;
+    sessionEnded?: "absolute" | null;
+    tokenRotatedAt?: number | null;
+    tokenRotationCount?: number | null;
+    providerIdTokenExpiresAt?: number | null;
+    expires?: string | null;
+};
+
+export function checkSessionIfValid(session: AppSession) {
     if (session.sessionEnded === "absolute") {
         return false;
     }
@@ -47,14 +56,14 @@ export const getSession = async () => {
 
         if (!decodedToken) throw new Error("JWT decode failed");
 
-        const updatedToken = await jwtCallback({token: decodedToken, user: {} as User})
+        const updatedToken = await jwtCallback({token: decodedToken, user: {} as {id?: string}})
 
         console.log("Updated Token:", updatedToken);
 
         const expires = new Date((updatedToken as AppJWT).absoluteSessionExpiresAt ?? 0)
 
         const t = updatedToken as AppJWT
-        const updatedSession: Session = {
+        const updatedSession: AppSession = {
             // mirror v4 augmentation shape used by UI/debug
             error: t.error ?? null,
             sessionEnded: t.sessionEnded ?? null,

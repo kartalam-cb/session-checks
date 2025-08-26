@@ -1,1 +1,0 @@
-// Removed v4 NextAuth configuration in favor of v5-only setup.
