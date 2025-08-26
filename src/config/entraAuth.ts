@@ -51,7 +51,7 @@ export const {
                     params: {scope: "profile User.Read email openid offline_access"},
                 },
             }),
-            // Azure AD B2C (consumer accounts) via custom OAuth config
+            // Azure AD B2C (consumer accounts) via custom OIDC config
             {
                 id: "azure-ad-b2c",
                 name: "Azure AD B2C",
@@ -62,9 +62,33 @@ export const {
                 clientSecret: b2cClientSecret,
                 authorization: {
                     url: ADB2C_AUTHORIZATION_ENDPOINT,
-                    params: { scope: "openid offline_access profile" },
+                    params: {
+                        // Note: B2C may not return access_token unless an API scope is requested.
+                        // We still request standard OIDC scopes.
+                        scope: "openid offline_access profile",
+                    },
                 },
-                token: ADB2C_TOKEN_ENDPOINT,
+                token: {
+                    url: ADB2C_TOKEN_ENDPOINT,
+                    // Some B2C policies return only id_token + refresh_token. Map id_token to access_token to satisfy Auth.js expectations.
+                    async conform(response: Response) {
+                        try {
+                            const original: Record<string, unknown> = await response.json();
+                            const hasAccess = typeof original["access_token"] === "string";
+                            const hasId = typeof original["id_token"] === "string";
+                            if (!hasAccess && hasId) {
+                                original["access_token"] = original["id_token"] as string;
+                            }
+                            return new Response(JSON.stringify(original), {
+                                status: response.status,
+                                statusText: response.statusText,
+                                headers: response.headers,
+                            });
+                        } catch {
+                            return response;
+                        }
+                    },
+                },
                 checks: ["pkce", "nonce"],
                 client: { token_endpoint_auth_method: "none" },
                 profile(profile: Record<string, unknown> & {
