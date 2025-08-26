@@ -1,9 +1,9 @@
 import {Session, User} from "next-auth";
 import {cookies as nextCookies} from "next/headers";
 import {SessionStore} from "@/utils/SessionStore";
-import {authJsOptions} from "@/config/auth";
 import {decode, encode} from "@/utils/jwt";
-import {jwtCallback} from "@/config/callbacks";
+import {jwtCallback, AppJWT} from "@/config/callbacks";
+import {COOKIE_AUTH_JS_SESSION_TOKEN, sessionMaxAge} from "@/config/helpers";
 
 export function checkSessionIfValid(session: Session) {
     if (session.sessionEnded === "absolute") {
@@ -34,7 +34,7 @@ export const getSession = async () => {
         [cookie.name]: cookie.value
     }), {} as Record<string, string>)
 
-    const sessionStore = new SessionStore(authJsOptions.cookies?.sessionToken!, cookieRecord);
+    const sessionStore = new SessionStore({ name: COOKIE_AUTH_JS_SESSION_TOKEN, options: { httpOnly: true, sameSite: "lax", path: "/" } }, cookieRecord);
 
     console.log("cookie options", authJsOptions.cookies?.sessionToken?.name);
 
@@ -43,8 +43,8 @@ export const getSession = async () => {
     try {
         const decodedToken = await decode({
             token: sessionStore.value,
-            secret: authJsOptions.secret,
-            salt: authJsOptions.cookies?.sessionToken?.name
+            secret: process.env.AUTH_SECRET ?? "",
+            salt: COOKIE_AUTH_JS_SESSION_TOKEN
         })
 
         console.log("Decoded Token:", decodedToken);
@@ -55,27 +55,30 @@ export const getSession = async () => {
 
         console.log("Updated Token:", updatedToken);
 
-        const expires = new Date(updatedToken.absoluteSessionExpiresAt ?? 0)
+        const expires = new Date((updatedToken as AppJWT).absoluteSessionExpiresAt ?? 0)
 
-        // @ts-expect-error Property 'user' is missing in type
-        const updatedSession = await authJsOptions.callbacks?.session?.({
-            token: updatedToken,
-            session: {
-                expires: expires.toISOString(),
-                user: {
-                    name: undefined,
-                    email: undefined,
-                    image: undefined
-                }
+        const t = updatedToken as AppJWT
+        const updatedSession: Session = {
+            // mirror v4 augmentation shape used by UI/debug
+            error: t.error ?? null,
+            sessionEnded: t.sessionEnded ?? null,
+            tokenRotatedAt: t.tokenRotatedAt ?? null,
+            tokenRotationCount: t.tokenRotationCount ?? null,
+            providerIdTokenExpiresAt: t.providerIdTokenExpiresAt ?? null,
+            expires: expires.toISOString(),
+            user: {
+                name: undefined as unknown as string | null,
+                email: undefined as unknown as string | null,
+                image: undefined as unknown as string | null,
             }
-        })
+        }
 
         console.log("Updated Session:", updatedSession);
 
         const encodedToken = await encode({
             token: updatedToken,
-            maxAge: authJsOptions.session.maxAge,
-            secret: authJsOptions.secret
+            maxAge: sessionMaxAge,
+            secret: process.env.AUTH_SECRET ?? ""
         })
 
         const sessionCookies = sessionStore.chunk(encodedToken, {

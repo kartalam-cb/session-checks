@@ -1,11 +1,19 @@
 import type {NextAuthResult} from "next-auth-v5";
 import NextAuth from "next-auth-v5";
 import MicrosoftEntraID from "next-auth-v5/providers/microsoft-entra-id";
-import {COOKIE_AUTH_JS_SESSION_TOKEN, sessionMaxAge} from "@/config/helpers";
+import {
+    COOKIE_AUTH_JS_SESSION_TOKEN,
+    sessionMaxAge,
+    ADB2C_AUTHORIZATION_ENDPOINT,
+    ADB2C_TOKEN_ENDPOINT,
+    ADB2C_WELL_KNOWN_URL,
+    ADB2C_ISSUER,
+    clientId as b2cClientId,
+    clientSecret as b2cClientSecret,
+} from "@/config/helpers";
 import {jwtCallback} from "@/config/callbacks";
 import {decode, encode} from "@/utils/jwt";
 
-// @ts-ignore
 export const {
         handlers,
         auth,
@@ -24,12 +32,16 @@ export const {
             maxAge: sessionMaxAge,
             updateAge: 0,
         },
+        // Cast to any to bridge local jwt utils and next-auth-v5 expectations
         jwt: {
             maxAge: sessionMaxAge,
-            encode: encode,
-            decode: decode
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            encode: encode as unknown as any,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            decode: decode as unknown as any,
         },
         providers: [
+            // Microsoft Entra ID (work/school accounts)
             MicrosoftEntraID({
                 clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID,
                 clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
@@ -39,6 +51,36 @@ export const {
                     params: {scope: "profile User.Read email openid offline_access"},
                 },
             }),
+            // Azure AD B2C (consumer accounts) via custom OAuth config
+            {
+                id: "azure-ad-b2c",
+                name: "Azure AD B2C",
+                type: "oidc",
+                issuer: ADB2C_ISSUER,
+                wellKnown: ADB2C_WELL_KNOWN_URL,
+                clientId: b2cClientId,
+                clientSecret: b2cClientSecret,
+                authorization: {
+                    url: ADB2C_AUTHORIZATION_ENDPOINT,
+                    params: { scope: "openid offline_access profile" },
+                },
+                token: ADB2C_TOKEN_ENDPOINT,
+                checks: ["pkce", "nonce"],
+                client: { token_endpoint_auth_method: "none" },
+                profile(profile: Record<string, unknown> & {
+                    sub?: string;
+                    given_name?: string;
+                    family_name?: string;
+                    emails?: string[];
+                    email?: string;
+                }) {
+                    return {
+                        id: profile.sub ?? "",
+                        name: `${profile.given_name ?? ""} ${profile.family_name ?? ""}`.trim(),
+                        email: (profile.emails && Array.isArray(profile.emails) ? profile.emails[0] : undefined) ?? profile.email ?? "",
+                    }
+                },
+            },
         ],
         trustHost: true,
         cookies: {
@@ -63,14 +105,12 @@ export const {
              *
              * rest of the jwt token is not exposed to the client as the refresh and revoke is based on callbacks and events
              */
-            // @ts-expect-error session is defined as custom type to ease the sync with multiple versions of next-auth
-            session({token, session}
-            ) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            session(args: any) {
+                const { session } = args;
                 return {...session,}
             }
             ,
         },
     })
 ;
-
-export { auth, signIn, signOut };

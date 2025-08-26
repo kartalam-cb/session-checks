@@ -9,7 +9,7 @@ type Digest = Parameters<typeof calculateJwkThumbprint>[1]
 
 export interface JWTEncodeParams {
     /** The JWT payload. */
-    token: JWT
+    token?: JWT
     /**
      * Used in combination with `secret` when deriving the encryption secret for the various NextAuth.js-issued JWTs.
      * @note When no `salt` is passed, we assume this is a session token.
@@ -35,7 +35,7 @@ export interface JWTDecodeParams {
      */
     salt: string | string[]
     /** The key material used to decode the NextAuth.js issued JWTs. Defaults to `NEXTAUTH_SECRET`. */
-    secret: string | Buffer
+    secret: string | string[]
 }
 
 const encryption = "A256CBC-HS512"
