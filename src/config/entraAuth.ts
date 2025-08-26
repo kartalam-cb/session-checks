@@ -62,11 +62,11 @@ export const {
                 clientSecret: b2cClientSecret,
                 authorization: {
                     url: ADB2C_AUTHORIZATION_ENDPOINT,
-                    params: {
-                        // Note: B2C may not return access_token unless an API scope is requested.
-                        // We still request standard OIDC scopes.
-                        scope: "openid offline_access profile",
-                    },
+                    params: (() => {
+                        const apiScope = process.env.CB_B2C_API_SCOPE; // e.g. "https://yourtenant.onmicrosoft.com/your-api/scope.read"
+                        const base = "openid offline_access profile";
+                        return { scope: apiScope ? `${base} ${apiScope}` : base };
+                    })(),
                 },
                 token: {
                     url: ADB2C_TOKEN_ENDPOINT,
