@@ -6,7 +6,7 @@ export const clientSecret = process.env.CB_AUTH_AZURE_AD_B2C_CLIENT_SECRET!;
 
 export const COOKIE_AUTH_JS_SESSION_TOKEN = "auth.session-token";
 export const sessionMaxAge = 90 * 24 * 60 * 60; // 90 days in seconds
-export const FIFTEEN_MIN_IN_MS = 15 * 60 * 1000; // 15 minutes in milliseconds
+export const FIFTEEN_MIN_IN_MS = 5 * 60 * 1000; // 5 minutes in milliseconds
 export const ADB2C_WELL_KNOWN_URL = `https://${tenantLower}.b2clogin.com/${tenantLower}.onmicrosoft.com/${userFlow}/v2.0/.well-known/openid-configuration`;
 export const ADB2C_AUTHORIZATION_ENDPOINT = `https://${tenantLower}.b2clogin.com/${tenantLower}.onmicrosoft.com/${userFlow}/oauth2/v2.0/authorize`;
 export const ADB2C_TOKEN_ENDPOINT = `https://${tenantLower}.b2clogin.com/${tenantLower}.onmicrosoft.com/${userFlow}/oauth2/v2.0/token`;

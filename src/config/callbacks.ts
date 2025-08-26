@@ -8,8 +8,6 @@ export type AppJWT = JWT & {
     providerIdTokenExpiresAt?: number | null;
     absoluteSessionExpiresAt?: number | null;
     sessionEnded?: "absolute" | null;
-    tokenRotatedAt?: number | null;
-    tokenRotationCount?: number | null;
     error?: {
         message: string;
         description?: string;
@@ -31,12 +29,10 @@ export async function jwtCallback({user, token, account}: {
         return {
             ...token,
             sub: user.id,
-            providerRefreshToken: (account as { refresh_token?: string | null } | null)?.refresh_token ?? null,
+            providerRefreshToken: account.refresh_token,
             providerIdTokenExpiresAt,
             absoluteSessionExpiresAt: now + (sessionMaxAge * 1000),
             sessionEnded: null,
-            tokenRotatedAt: now,
-            tokenRotationCount: 0,
             error: null,
         } satisfies AppJWT;
     }
@@ -88,8 +84,6 @@ export async function jwtCallback({user, token, account}: {
         return {
             ...t,
             providerRefreshToken: refreshedToken.refresh_token,
-            tokenRotatedAt: now,
-            tokenRotationCount: (t.tokenRotationCount ?? 0) + 1,
             error: null,
             providerIdTokenExpiresAt: now + FIFTEEN_MIN_IN_MS,
         } satisfies AppJWT;
