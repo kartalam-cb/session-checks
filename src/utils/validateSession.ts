@@ -30,10 +30,8 @@ export function checkSessionIfValid(session: AppSession) {
     }
   }
 
-  return !(
-    session.providerIdTokenExpiresAt &&
-    Date.now() > Number(session.providerIdTokenExpiresAt)
-  );
+  const providerExpiryMs = session.providerIdTokenExpiresAt ?? null;
+  return !(providerExpiryMs && Date.now() > providerExpiryMs);
 }
 
 export const getSession = async (cookies?: Record<string, string>) => {
@@ -76,9 +74,10 @@ export const getSession = async (cookies?: Record<string, string>) => {
       user: {} as { id?: string },
     });
 
-    const expires = new Date(
-      (updatedToken as AppJWT).absoluteSessionExpiresAt ?? 0
-    );
+    // Keeping the cookie expires date from the point user logged in.
+    // Rather than extending the cookie expiration date whenever the user is active.
+    const absoluteMs = (updatedToken as AppJWT).absoluteSessionExpiresAt ?? 0;
+    const expires = new Date(absoluteMs);
 
     const t = updatedToken as AppJWT;
     const updatedSession: AppSession = {
