@@ -36,10 +36,6 @@ export const getSession = async () => {
 
     const sessionStore = new SessionStore({ name: COOKIE_AUTH_JS_SESSION_TOKEN, options: { httpOnly: true, sameSite: "lax", path: "/" } }, cookieRecord);
 
-    console.log("cookie options", authJsOptions.cookies?.sessionToken?.name);
-
-    console.log("autjsoptions", authJsOptions);
-
     try {
         const decodedToken = await decode({
             token: sessionStore.value,
@@ -47,7 +43,7 @@ export const getSession = async () => {
             salt: COOKIE_AUTH_JS_SESSION_TOKEN
         })
 
-        console.log("Decoded Token:", decodedToken);
+        
 
         if (!decodedToken) throw new Error("JWT decode failed");
 
@@ -78,7 +74,8 @@ export const getSession = async () => {
         const encodedToken = await encode({
             token: updatedToken,
             maxAge: sessionMaxAge,
-            secret: process.env.AUTH_SECRET ?? ""
+            secret: process.env.AUTH_SECRET ?? "",
+            salt: COOKIE_AUTH_JS_SESSION_TOKEN
         })
 
         const sessionCookies = sessionStore.chunk(encodedToken, {
