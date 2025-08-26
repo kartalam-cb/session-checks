@@ -24,7 +24,23 @@ export class SessionStore {
 
         const { name: cookieName } = option
 
-        this.#chunks[cookieName] = cookies[cookieName] ?? ""
+        // Load base cookie and any chunked variants `${name}.0`, `${name}.1`, ... if present
+        const baseValue = cookies[cookieName]
+        if (typeof baseValue === "string" && baseValue.length > 0) {
+            this.#chunks[cookieName] = baseValue
+        }
+
+        // Collect chunked parts in order if any exist
+        let index = 0
+        // Limit to a sane maximum to avoid infinite loops on malformed inputs
+        const MAX_CHUNKS = 50
+        while (index < MAX_CHUNKS) {
+            const chunkName = `${cookieName}.${index}`
+            const value = cookies[chunkName]
+            if (typeof value !== "string" || value.length === 0) break
+            this.#chunks[chunkName] = value
+            index++
+        }
     }
 
     /**

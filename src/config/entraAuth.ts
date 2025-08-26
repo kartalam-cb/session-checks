@@ -8,10 +8,16 @@ import {decode, encode} from "@/utils/jwt";
 // @ts-ignore
 export const {
         handlers,
+        auth,
+        signIn,
+        signOut,
     }: {
         handlers: NextAuthResult["handlers"];
+        auth: NextAuthResult["auth"];
+        signIn: NextAuthResult["signIn"];
+        signOut: NextAuthResult["signOut"];
     } = NextAuth({
-        secret: process.env.NEXTAUTH_SECRET,
+        secret: process.env.AUTH_SECRET,
         debug: true,
         session: {
             strategy: "jwt",
@@ -66,3 +72,5 @@ export const {
         },
     })
 ;
+
+export { auth, signIn, signOut };

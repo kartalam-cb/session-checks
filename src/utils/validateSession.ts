@@ -14,8 +14,11 @@ export function checkSessionIfValid(session: Session) {
         return false;
     }
 
-    if (session.expires && Date.now() > Number(session.expires)) {
-        return false;
+    if (session.expires) {
+        const expiresAt = Date.parse(session.expires);
+        if (!Number.isNaN(expiresAt) && Date.now() > expiresAt) {
+            return false;
+        }
     }
 
     return !(session.providerIdTokenExpiresAt && Date.now() > Number(session.providerIdTokenExpiresAt));
