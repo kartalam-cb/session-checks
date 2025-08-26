@@ -4,29 +4,19 @@ import {
   sessionMaxAge,
 } from "@/config/helpers";
 import type { JWT } from "next-auth/jwt";
-import type { Account as NextV5Account } from "next-auth";
-
-export type AppJWT = JWT & {
-  providerRefreshToken?: string | null;
-  providerIdTokenExpiresAt?: number | null;
-  absoluteSessionExpiresAt?: number | null;
-  sessionEnded?: "absolute" | null;
-  error?: {
-    message: string;
-    description?: string;
-  } | null;
-};
+import type { Account, User } from "next-auth";
+import type { AdapterUser } from "next-auth/adapters";
 
 export async function jwtCallback({
-  user,
   token,
+  user,
   account,
 }: {
   token: JWT;
-  user: { id?: string | undefined };
-  account?: NextV5Account | null;
-}) {
-  const t = token as AppJWT;
+  user: User | AdapterUser;
+  account?: Account | null;
+}): Promise<JWT> {
+  const t = token;
 
   // Initial sign-in: store provider refresh token and force provider ID token expiry to 15 minutes (POC)
   if (account && user) {
@@ -34,14 +24,13 @@ export async function jwtCallback({
     // POC: Force ID token window to 15 minutes to exercise refresh flow
     const providerIdTokenExpiresAt = now + FIFTEEN_MIN_IN_MS; // ms
     return {
-      ...token,
       sub: user.id,
       providerRefreshToken: account.refresh_token,
       providerIdTokenExpiresAt, // ms
       absoluteSessionExpiresAt: now + sessionMaxAge * 1000, // ms
       sessionEnded: null,
       error: null,
-    } satisfies AppJWT;
+    };
   }
 
   // If we don't have provider refresh token, we cannot mint a new provider ID token to exchange for SF
@@ -69,22 +58,21 @@ export async function jwtCallback({
         message: "Absolute session cap reached",
         description: "Session ended due to 90-day cap.",
       },
-    } as AppJWT;
+    };
   }
 
   // If provider ID token expiry is set and not near/past expiry, nothing to do for POC
   const providerExpiresAt = Number(t.providerIdTokenExpiresAt ?? 0); // ms
   if (providerExpiresAt && now < providerExpiresAt) {
     console.warn(
-      `JWT: provider id token still valid until ${providerExpiresAt}, now=${now}`
+      `JWT: provider id token still valid until ${new Date(
+        providerExpiresAt
+      )}, now=${new Date(now)}`
     );
     return { ...token, error: null };
   }
 
-  console.log(
-    "JWT: attempting provider ID token refresh via refresh_token",
-    token
-  );
+  console.log("JWT: attempting provider ID token refresh via refresh_token");
 
   try {
     const refreshedToken = await refreshAdb2cTokens(t.providerRefreshToken);
@@ -99,12 +87,18 @@ export async function jwtCallback({
       };
     }
 
+    console.log(
+      `JWT: provider ID token refreshed, new expiry at ${new Date(
+        now + FIFTEEN_MIN_IN_MS
+      )}`
+    );
+
     return {
       ...t,
       providerRefreshToken: refreshedToken.refresh_token,
       error: null,
       providerIdTokenExpiresAt: now + FIFTEEN_MIN_IN_MS, // ms
-    } satisfies AppJWT;
+    };
   } catch (e) {
     return {
       ...t,

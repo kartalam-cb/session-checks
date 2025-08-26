@@ -2,19 +2,10 @@ import type { Session } from "next-auth";
 import { cookies as nextCookies } from "next/headers";
 import { SessionStore } from "@/utils/SessionStore";
 import { decode, encode } from "@/utils/jwt";
-import { jwtCallback, AppJWT } from "@/config/callbacks";
+import { jwtCallback } from "@/config/callbacks";
 import { COOKIE_AUTH_JS_SESSION_TOKEN, sessionMaxAge } from "@/config/helpers";
 
-type AppSession = Session & {
-  error?: { message: string; description?: string } | null;
-  sessionEnded?: "absolute" | null;
-  tokenRotatedAt?: number | null;
-  tokenRotationCount?: number | null;
-  providerIdTokenExpiresAt?: number | null;
-  expires?: string | null;
-};
-
-export function checkSessionIfValid(session: AppSession) {
+export function checkSessionIfValid(session: Session) {
   if (session.sessionEnded === "absolute") {
     return false;
   }
@@ -37,9 +28,8 @@ export function checkSessionIfValid(session: AppSession) {
 export const getSession = async (cookies?: Record<string, string>) => {
   let cookieRecord: Record<string, string> = cookies ?? {};
   if (!cookies) {
-    const cookies = await nextCookies();
-
-    cookieRecord = cookies.getAll().reduce((acc, cookie) => {
+    const cookiesStore = await nextCookies();
+    cookieRecord = cookiesStore.getAll().reduce((acc, cookie) => {
       acc[cookie.name] = cookie.value;
       return acc;
     }, {} as Record<string, string>);
@@ -61,9 +51,12 @@ export const getSession = async (cookies?: Record<string, string>) => {
   );
 
   try {
+    const secret = process.env.AUTH_SECRET ?? "";
+    if (!secret) throw new Error("AUTH_SECRET is not set");
+
     const decodedToken = await decode({
       token: sessionStore.value,
-      secret: process.env.AUTH_SECRET ?? "",
+      secret,
       salt: COOKIE_AUTH_JS_SESSION_TOKEN,
     });
 
@@ -71,16 +64,16 @@ export const getSession = async (cookies?: Record<string, string>) => {
 
     const updatedToken = await jwtCallback({
       token: decodedToken,
-      user: {} as { id?: string },
+      user: {},
     });
 
     // Keeping the cookie expires date from the point user logged in.
     // Rather than extending the cookie expiration date whenever the user is active.
-    const absoluteMs = (updatedToken as AppJWT).absoluteSessionExpiresAt ?? 0;
+    const absoluteMs = updatedToken.absoluteSessionExpiresAt ?? 0;
     const expires = new Date(absoluteMs);
 
-    const t = updatedToken as AppJWT;
-    const updatedSession: AppSession = {
+    const t = updatedToken;
+    const updatedSession: Session = {
       // mirror v4 augmentation shape used by UI/debug
       error: t.error ?? null,
       sessionEnded: t.sessionEnded ?? null,
@@ -96,7 +89,7 @@ export const getSession = async (cookies?: Record<string, string>) => {
     const encodedToken = await encode({
       token: updatedToken,
       maxAge: sessionMaxAge,
-      secret: process.env.AUTH_SECRET ?? "",
+      secret,
       salt: COOKIE_AUTH_JS_SESSION_TOKEN,
     });
 
@@ -109,6 +102,9 @@ export const getSession = async (cookies?: Record<string, string>) => {
       cookies: sessionCookies,
     };
   } catch (e) {
-    console.error("session fetch has failed:", e);
+    if (process.env.NODE_ENV !== "production") {
+      console.error("getSession failed", e);
+    }
+    return { session: null, cookies: [] };
   }
 };
